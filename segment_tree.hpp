@@ -1,6 +1,7 @@
 #ifndef __SEGMENTTREE_H
 #define __SEGMENTTREE_H
 
+
 #include <vector>
 #include <set>
 #include <algorithm>
@@ -133,6 +134,12 @@ private:
 
 	// results will be with repeats!!!!
 	void FindOverlappingIntervals(const TKey& start, const TKey& end, const int startNode, void (* callback) (const TValue&)) const {
+		if (!Tree[startNode].Values.empty()) {
+			for (typename vector<TValue>::const_iterator valueIt = Tree[startNode].Values.begin();
+					valueIt != Tree[startNode].Values.end(); ++valueIt) {
+				callback(*valueIt);
+			}
+		}
 		{
 			const int leftChild = startNode << 1;
 			if (leftChild < Tree.size() && Tree[leftChild].Start <= end && Tree[leftChild].End > start) {
