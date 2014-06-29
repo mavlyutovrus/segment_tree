@@ -9,12 +9,6 @@
 using std::vector;
 using std::set;
 
-template <class TValue>
-struct DoNothingCallback {
-	void operator()(const TValue*) {
-	}
-};
-
 
 template <class TKey, class TValue>
 class TSegmentTree {
@@ -63,7 +57,7 @@ public:
 		const TKey& minValue = Tree[TREE_ROOT].Start;
 		const TKey& maxValue = Tree[TREE_ROOT].End;
 		if (point < minValue || point >= maxValue) {
-			return 0;
+			return;
 		}
 		FindContainingIntervals(point, TREE_ROOT, callbackPtr);
 	}
@@ -76,7 +70,7 @@ public:
 		const TKey& minValue = Tree[TREE_ROOT].Start;
 		const TKey& maxValue = Tree[TREE_ROOT].End;
 		if (end <= minValue || start >= maxValue) {
-			return 0;
+			return;
 		}
 		FindOverlappingIntervals(start, end, TREE_ROOT, callbackPtr);
 	}
@@ -153,7 +147,6 @@ private:
 		if (!Tree[startNode].Values.empty()) {
 			for (typename vector<TValue>::const_iterator valueIt = Tree[startNode].Values.begin();
 					valueIt != Tree[startNode].Values.end(); ++valueIt) {
-
 				(*callbackPtr)(*valueIt);
 			}
 		}
