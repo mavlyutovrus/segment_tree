@@ -1,14 +1,15 @@
 segment_tree
 ============
 
-Canonic implementation of Segment tree
+Canonic implementation of Segment tree from Wikipedia
 http://en.wikipedia.org/wiki/Segment_tree
 
+HOWTO (also in 'example.cpp')
 
-
-// HOWTO (also in 'example.cpp')
+{
 // 1. create tree with intervals: [0, 3), [1, 5), [3, 10), [8, 20)
 // attach their unique ids as values respectively:  1, 2, 3, 4
+
 typedef TSegmentTree<int, int>::TKeyValue TKeyValue;
 vector<TKeyValue> data = { TKeyValue(0, 3, 1),
 						   TKeyValue(1, 5, 2),
@@ -16,14 +17,16 @@ vector<TKeyValue> data = { TKeyValue(0, 3, 1),
 						   TKeyValue(8, 20, 4) };
 TSegmentTree<int, int> tree(data);
 
+
+
 // 2. ids of intervals which overlap point 3
 // answer: 2, 3
 {
-
 	vector<int> results = tree.Search(3);
 	std::for_each(results.begin(), results.end(), print);
 	std::cout << "\n";
 }
+
 
 // 3. count of intervals which overlap point 3
 // NB: this method doesn't collect results, so it is more efficient
@@ -63,4 +66,5 @@ TSegmentTree<int, int> tree(data);
 
 	tree.Search(20, 21, &printer);
 	std::cout << "\n";
+}
 }
