@@ -9,6 +9,12 @@
 using std::vector;
 using std::set;
 
+template <class TValue>
+struct DoNothingCallback {
+	void operator()(const TValue*) {
+	}
+};
+
 
 template <class TKey, class TValue>
 class TSegmentTree {
@@ -27,46 +33,53 @@ public:
 		BuildTree(data);
 	}
 
-	int Search(const TKey& point, void (*callback) (const TValue&)) const {
-		const TKey& minValue = Tree[TREE_ROOT].Start;
-		const TKey& maxValue = Tree[TREE_ROOT].End;
-		if (point < minValue || point >= maxValue) {
-			return 0;
-		}
-		return FindContainingIntervals(point, TREE_ROOT, callback);
-	}
+	//returns values of intervals which overlap the point
 	vector<TValue> Search(const TKey& point) const {
-		const TKey& minValue = Tree[TREE_ROOT].Start;
-		const TKey& maxValue = Tree[TREE_ROOT].End;
-		if (point < minValue || point >= maxValue) {
-			return vector<TValue>();
-		}
-		CollectorVector collector;
+		TCollectorVector collector;
 		FindContainingIntervals(point, TREE_ROOT, &collector);
 		return collector.Results;
 	}
 
-	// there will be repeats in results, to avoid repeats use the next method
-	void Search(const TKey& start, const TKey& end, void (* callback) (const TValue&)) const {
-		const TKey& minValue = Tree[TREE_ROOT].Start;
-		const TKey& maxValue = Tree[TREE_ROOT].End;
-		if (end <= minValue || start >= maxValue) {
-			return 0;
-		}
-		FindOverlappingIntervals(start, end, TREE_ROOT, callback);
+	//returns number of intervals which overlap the point
+	//NB: faster than the previous method, doesn't collect values
+	int Count(const TKey& point) const {
+		TCounter counter;
+		FindContainingIntervals(point, TREE_ROOT, &counter);
+		return counter.Count;
 	}
-	//no repeats
+
+	//returns (!!!)distinct values of intervals which overlap the interval [start, end)
 	vector<TValue> Search(const TKey& start, const TKey& end) const {
-		const TKey& minValue = Tree[TREE_ROOT].Start;
-		const TKey& maxValue = Tree[TREE_ROOT].End;
-		if (end <= minValue || start >= maxValue) {
-			return 0;
-		}
-		CollectorSet collector;
+		TCollectorSet collector;
 		FindOverlappingIntervals(start, end, TREE_ROOT, &collector);
 		return vector<TValue>(collector.Results.begin(), collector.Results.end());
 	}
 
+	//generic search methods,
+	//1. all intervals, which overlap the point
+	// calls TCallback(const TValue&) for each found result
+	template <class TCallback>
+	void Search(const TKey& point, TCallback* callbackPtr) const {
+		const TKey& minValue = Tree[TREE_ROOT].Start;
+		const TKey& maxValue = Tree[TREE_ROOT].End;
+		if (point < minValue || point >= maxValue) {
+			return 0;
+		}
+		FindContainingIntervals(point, TREE_ROOT, callbackPtr);
+	}
+
+	//2. all intervals, which overlap the interval [start, end)
+	// calls TCallback(const TValue&) for each found result
+	//NB: in this method callback will be called for the same interval more than one time
+	template <class TCallback>
+	void Search(const TKey& start, const TKey& end, TCallback* callbackPtr) const {
+		const TKey& minValue = Tree[TREE_ROOT].Start;
+		const TKey& maxValue = Tree[TREE_ROOT].End;
+		if (end <= minValue || start >= maxValue) {
+			return 0;
+		}
+		FindOverlappingIntervals(start, end, TREE_ROOT, callbackPtr);
+	}
 
 private:
 	struct TNode {
@@ -132,49 +145,51 @@ private:
 		}
 	}
 
-	// results will be with repeats!!!!
-	void FindOverlappingIntervals(const TKey& start, const TKey& end, const int startNode, void (* callback) (const TValue&)) const {
+	//NB: callback will be called for the same value more than one time
+	template <class TCallback>
+	void FindOverlappingIntervals(const TKey& start, const TKey& end,
+								  const int startNode, TCallback* callbackPtr) const {
+
 		if (!Tree[startNode].Values.empty()) {
 			for (typename vector<TValue>::const_iterator valueIt = Tree[startNode].Values.begin();
 					valueIt != Tree[startNode].Values.end(); ++valueIt) {
-				callback(*valueIt);
+
+				(*callbackPtr)(*valueIt);
 			}
 		}
 		{
 			const int leftChild = startNode << 1;
 			if (leftChild < Tree.size() && Tree[leftChild].Start <= end && Tree[leftChild].End > start) {
-				FindOverlappingIntervals(start, end, leftChild, callback);
+				FindOverlappingIntervals(start, end, leftChild, callbackPtr);
 			}
 		}
 		{
 			const int rightChild = (startNode << 1) + 1;
 			if (rightChild < Tree.size() && Tree[rightChild].Start <= end && Tree[rightChild].End > start) {
-				FindOverlappingIntervals(start, end, rightChild, callback);
+				FindOverlappingIntervals(start, end, rightChild, callbackPtr);
 			}
 		}
 	}
-
-	int FindContainingIntervals(const TKey& point, const int startNode, void (* callback) (const TValue&)) const {
-		int hitsCount = Tree[startNode].Values.size();
+	template <class TCallback>
+	void FindContainingIntervals(const TKey& point, const int startNode, TCallback* callbackPtr) const {
 		if (!Tree[startNode].Values.empty()) {
 			for (typename vector<TValue>::const_iterator valueIt = Tree[startNode].Values.begin();
 					valueIt != Tree[startNode].Values.end(); ++valueIt) {
-				callback(*valueIt);
+				(*callbackPtr)(*valueIt);
 			}
 		}
 		{
 			const int leftChild = startNode << 1;
 			if (leftChild < Tree.size() && Tree[leftChild].Start <= point && Tree[leftChild].End > point) {
-				hitsCount += FindContainingIntervals(point, leftChild, callback);
+				FindContainingIntervals(point, leftChild, callbackPtr);
 			}
 		}
 		{
 			const int rightChild = (startNode << 1) + 1;
 			if (rightChild < Tree.size() && Tree[rightChild].Start <= point && Tree[rightChild].End > point) {
-				hitsCount += FindContainingIntervals(point, rightChild, callback);
+				FindContainingIntervals(point, rightChild, callbackPtr);
 			}
 		}
-		return hitsCount;
 	}
 
 	void PutInterval(const TKey& start, const TKey& end, const TValue& value, const int startNode) {
@@ -195,15 +210,24 @@ private:
 		}
 	}
 
-	struct CollectorVector {
+	struct TCounter {
+		int Count;
+		TCounter(): Count(0) {
+		}
+		void operator()(const TValue&) {
+			++Count;
+		}
+	};
+
+	struct TCollectorVector {
 		vector<TValue> Results;
-		void operator()(TValue& value) {
+		void operator()(const TValue& value) {
 			Results.push_back(value);
 		}
 	};
-	struct CollectorSet {
+	struct TCollectorSet {
 		set<TValue> Results;
-		void operator()(TValue& value) {
+		void operator()(const TValue& value) {
 			Results.insert(value);
 		}
 	};
